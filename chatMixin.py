@@ -21,6 +21,8 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 bot.user_conversations = {}
 
+user_settings = {}
+
 
 @bot.command(name='history', help='查看与 bot 的对话历史')
 async def history(ctx, num: int = 1):  # 默认显示5条，但可以通过参数更改
@@ -46,6 +48,18 @@ async def history(ctx, num: int = 1):  # 默认显示5条，但可以通过参�
     await ctx.send(history_text)
 
 
+@bot.command(name='set_temperature', help='设置模型的 temperature')
+async def set_temperature(ctx, temp: float):
+    user_id = ctx.message.author.id
+    if user_id not in user_settings:
+        user_settings[user_id] = {}  # 初始化用户设置
+    if 0 <= temp <= 1:
+        user_settings[user_id]['temperature'] = temp
+        await ctx.send(f'设置 temperature 为 {temp}')
+    else:
+        await ctx.send('temperature 必须在0到1之间')
+
+
 @bot.event
 async def on_message(message):
 
@@ -68,12 +82,14 @@ async def on_message(message):
     bot.user_conversations[user_id].append(
         {"role": "user", "content": user_message})
 
+    # 在与用户交互时：
+    temp = user_settings.get(user_id, {}).get('temperature', 0.7)  # 使用默认值0.7
     chat_response = openai.ChatCompletion.create(
         model=model_engine,
         messages=bot.user_conversations[user_id],
         max_tokens=600,
         n=1,
-        temperature=0.5,
+        temperature=temp,
     )
 
     response = chat_response.choices[0].message['content'].strip()

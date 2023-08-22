@@ -7,6 +7,10 @@ import asyncio
 
 from discord.utils import get
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 openai.api_key = os.getenv('OPENAI_API_KEY')
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 model_engine = "gpt-3.5-turbo"
@@ -17,13 +21,31 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 bot.user_conversations = {}
 
+
+@bot.command(name='history', help='查看与 bot 的对话历史')
+async def history(ctx):
+    user_id = ctx.message.author.id
+    if user_id not in bot.user_conversations:
+        await ctx.send('没有找到与你的对话历史')
+        return
+
+    conversation_history = bot.user_conversations[user_id]
+    history_text = '\n'.join(
+        [f'{msg["role"]}: {msg["content"]}' for msg in conversation_history])
+    await ctx.send(history_text)
+
+
 @bot.event
 async def on_message(message):
+
+    await bot.process_commands(message)
+
     if message.author == bot.user:
         return
 
     if get(message.mentions, id=bot.user.id):
-        user_message = message.content.replace(f'<@!{bot.user.id}>', '').strip()
+        user_message = message.content.replace(
+            f'<@!{bot.user.id}>', '').strip()
     else:
         return
 
@@ -32,7 +54,8 @@ async def on_message(message):
     if user_id not in bot.user_conversations:
         bot.user_conversations[user_id] = []
 
-    bot.user_conversations[user_id].append({"role": "user", "content": user_message})
+    bot.user_conversations[user_id].append(
+        {"role": "user", "content": user_message})
 
     chat_response = openai.ChatCompletion.create(
         model=model_engine,
@@ -43,7 +66,8 @@ async def on_message(message):
     )
 
     response = chat_response.choices[0].message['content'].strip()
-    bot.user_conversations[user_id].append({"role": "assistant", "content": response})
+    bot.user_conversations[user_id].append(
+        {"role": "assistant", "content": response})
 
     await message.channel.send(response)
 

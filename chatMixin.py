@@ -23,13 +23,24 @@ bot.user_conversations = {}
 
 
 @bot.command(name='history', help='查看与 bot 的对话历史')
-async def history(ctx):
+async def history(ctx, num: int = 1):  # 默认显示5条，但可以通过参数更改
     user_id = ctx.message.author.id
     if user_id not in bot.user_conversations:
         await ctx.send('没有找到与你的对话历史')
         return
 
-    conversation_history = bot.user_conversations[user_id]
+    if num > 5:
+        await ctx.send('最多只能显示5条消息，将显示最近的5条消息。')
+        num = 5
+    elif num < 1:
+        await ctx.send('请指定一个介于1到5之间的数字。')
+        return
+
+    if num > len(bot.user_conversations[user_id]):
+        num = len(bot.user_conversations[user_id])
+
+    # 从对话历史中取最后num条消息
+    conversation_history = bot.user_conversations[user_id][-num:]
     history_text = '\n'.join(
         [f'{msg["role"]}: {msg["content"]}' for msg in conversation_history])
     await ctx.send(history_text)
